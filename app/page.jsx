@@ -1,4 +1,7 @@
+"use client"; // Doit être la TOUTE PREMIÈRE ligne
+
 import { useState, useRef, useEffect } from "react";
+import { supabase } from "@/lib/supabase"; // Pour connecter ta base de données
 
 const GOLD = "#F5A623";
 const DARK = "#0A0A0A";
