@@ -270,12 +270,14 @@ export default function BigSlameAcademy() {
   };
 
   // Recharger messages pour un élève sélectionné (admin)
-  const fetchConversation = async (studentId) => {
+    const fetchConversation = async (studentId) => {
+    // On cherche les messages entre l'élève et l'admin
     const { data } = await supabase.from("messages").select("*")
       .or(`sender_id.eq.${studentId},receiver_id.eq.${studentId}`)
       .order("created_at");
     setMessages(data || []);
   };
+
 
   useEffect(() => {
     if (chatWith) fetchConversation(chatWith.id);
@@ -437,16 +439,24 @@ export default function BigSlameAcademy() {
     setUploadBusy(false);
   };
 
-  // ── ENVOYER MESSAGE ──────────────────────────────────────────────────────────
+    // ── ENVOYER MESSAGE (CORRIGÉ) ────────────────────────────────────────────────
   const sendMsg = async () => {
     if (!chatMsg.trim()) return;
 
-    // REMPLACE cette suite de lettres par ton ID copié dans Supabase
-    const ADMIN_ID = "d94ea2f0-abc0-4675-a491-8b990f1afc17"; 
+    // 1. ICI : Colle ton ID Admin (UUID) copié depuis Supabase profiles
+    const MY_ADMIN_ID = "d94ea2f0-abc0-4675-a491-8b990f1afc17"; 
 
-    // Logique corrigée : On n'utilise plus "null"
-    const senderId = isAdmin ? ADMIN_ID : session?.user?.id;
-    const receiverId = isAdmin ? chatWith?.id : ADMIN_ID;
+    // 2. On définit qui est l'expéditeur et le destinataire
+    // Si tu es admin, l'expéditeur c'est TOI, le destinataire c'est l'élève (chatWith.id)
+    // Si tu es élève, l'expéditeur c'est TOI, le destinataire c'est l'ADMIN
+    const senderId   = session?.user?.id;
+    const receiverId = isAdmin ? chatWith?.id : MY_ADMIN_ID;
+
+    // Sécurité : si on n'a pas de destinataire, on n'envoie rien
+    if (!receiverId) {
+      notify("Erreur : Aucun destinataire sélectionné", "error");
+      return;
+    }
 
     const { error } = await supabase.from("messages").insert({
       sender_id: senderId, 
@@ -458,11 +468,12 @@ export default function BigSlameAcademy() {
       notify("Erreur envoi : " + error.message, "error");
     } else { 
       setChatMsg(""); 
-      // On rafraîchit la discussion pour voir le message apparaître
+      // On rafraîchit la discussion immédiatement
       if (!isAdmin) fetchStudentData(); 
       else fetchConversation(chatWith.id); 
     }
-};
+  };
+
 
   // ── SAUVEGARDER TOP 5 ────────────────────────────────────────────────────────
   const saveTop5 = async () => {
