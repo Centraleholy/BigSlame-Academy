@@ -252,11 +252,12 @@ export default function BigSlameAcademy() {
 
   // ✅ FIX: fetchConversation filtre précis élève ↔ admin dans les deux sens
   const fetchConversation = async (studentId) => {
-    const { data } = await supabase.from("messages").select("*")
-      .or(
-        `and(sender_id.eq.${studentId},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${studentId})`
-      )
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .or(`sender_id.eq.${studentId},receiver_id.eq.${studentId}`)
       .order("created_at");
+    if (error) console.error("Erreur messages:", error.message);
     setMessages(data || []);
   };
 
