@@ -227,14 +227,15 @@ export default function BigSlameAcademy() {
   const fetchStudentData = async () => {
     if (!session) return;
     const uid = session.user.id;
-    // ✅ FIX: filtre précis — les messages entre cet élève et l'admin
-    const [{ data:msgs }, { data:mb }] = await Promise.all([
-      supabase.from("messages").select("*")
-        .or(
-          `and(sender_id.eq.${uid},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${uid})`
-        )
+    const [{ data: msgs }, { data: mb }] = await Promise.all([
+      supabase.from("messages")
+        .select("*")
+        .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
         .order("created_at"),
-      supabase.from("student_beats").select("*").eq("student_id", uid).order("submitted_at", { ascending:false }),
+      supabase.from("student_beats")
+        .select("*")
+        .eq("student_id", uid)
+        .order("submitted_at", { ascending: false }),
     ]);
     setMessages(msgs || []);
     setMyBeats(mb || []);
@@ -242,11 +243,14 @@ export default function BigSlameAcademy() {
 
   // ── DONNÉES ADMIN ─────────────────────────────────────────────────────────────
   const fetchAdminData = async () => {
-    // ✅ FIX: exclut explicitement is_admin=true pour éviter comptage à zéro
-    const { data } = await supabase.from("profiles")
+    // neq("id", ADMIN_ID) au lieu de eq("is_admin", false)
+    // car certains profils ont is_admin = null et non false
+    const { data, error } = await supabase
+      .from("profiles")
       .select("*")
-      .eq("is_admin", false)
-      .order("created_at", { ascending:false });
+      .neq("id", ADMIN_ID)
+      .order("created_at", { ascending: false });
+    if (error) console.error("fetchAdminData error:", error.message);
     setStudents(data || []);
   };
 
