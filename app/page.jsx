@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 
-// ── COULEURS ──────────────────────────────────────────────────────────────────
-const GOLD = "#F5A623", DARK = "#0A0A0A", SURFACE = "#141414", SURF2 = "#1E1E1E", BORDER = "#2A2A2A";
+// ── CONSTANTES ────────────────────────────────────────────────────────────────
+const GOLD    = "#F5A623", DARK = "#0A0A0A", SURFACE = "#141414", SURF2 = "#1E1E1E", BORDER = "#2A2A2A";
+const ADMIN_ID = "d94ea2f0-abc0-4675-a491-8b990f1afc17"; // ← ton vrai ID admin Supabase
 
 // ── RESSOURCES PAR PLAN ───────────────────────────────────────────────────────
 const RESOURCES = {
@@ -12,7 +13,6 @@ const RESOURCES = {
   Platinum: [{ name:"ALL Drum Kits (8 styles)", type:"zip", icon:"🥁" },{ name:"VST Nexus 2", type:"link", icon:"🔗" },{ name:"VST Serum", type:"link", icon:"🔗" },{ name:"VST Omnisphere", type:"link", icon:"🔗" },{ name:"Vidéos 8 styles", type:"video", icon:"🎥" },{ name:"Masterclass BigSlame", type:"video", icon:"🎥" }],
 };
 
-// ── GÉNÉRATEUR MOT DE PASSE ───────────────────────────────────────────────────
 const genPassword = () => {
   const c = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#";
   return Array.from({length:12},()=>c[Math.floor(Math.random()*c.length)]).join("");
@@ -59,17 +59,17 @@ const CSS = `
   .tab-btn:hover:not(.active){color:#ccc}
   .empty-state{text-align:center;padding:48px 24px;color:#555}
   .empty-state span{font-size:38px;display:block;margin-bottom:10px}
-  .spinner{width:28px;height:28px;border:3px solid ${BORDER};border-top-color:${GOLD};border-radius:50%;animation:spin .8s linear infinite;margin:40px auto}
   .copy-box{background:#0D1117;border:1px solid #30363D;border-radius:8px;padding:14px 16px;font-family:monospace;font-size:13px;color:#58A6FF;user-select:all;word-break:break-all;cursor:pointer;transition:background .2s}
   .copy-box:hover{background:#161B22}
+  .notif-dot{position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ef4444;border-radius:50%;border:2px solid ${DARK}}
   @keyframes pulse{0%,100%{opacity:.4;transform:scaleY(.6)}50%{opacity:1;transform:scaleY(1)}}
   @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
   .fade-in{animation:fadeIn .4s ease forwards}
   .slide-down{animation:slideDown .25s ease forwards}
-
-  /* NAV */
+  .blink{animation:blink 1.5s ease infinite}
   .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.97);backdrop-filter:blur(12px);border-bottom:1px solid ${BORDER}}
   .nav-inner{max-width:1200px;margin:0 auto;padding:0 20px;height:62px;display:flex;align-items:center;justify-content:space-between}
   .nav-logo{background:none;border:none;cursor:pointer}
@@ -81,8 +81,6 @@ const CSS = `
   .notif.error{background:#ef4444;color:#fff}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px}
   .modal{width:100%;max-width:440px;padding:32px}
-
-  /* SECTIONS */
   .hero-sec{min-height:88vh;display:flex;align-items:center;padding:60px 20px;max-width:1200px;margin:0 auto}
   .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;width:100%}
   .hero-h1{font-size:clamp(58px,10vw,118px);line-height:.92;letter-spacing:-2px}
@@ -101,37 +99,23 @@ const CSS = `
   .tabs-row::-webkit-scrollbar{height:0}
   .chat-grid{display:grid;grid-template-columns:220px 1fr;gap:16px}
   .footer{border-top:1px solid ${BORDER};padding:30px 20px;text-align:center}
-
-  @media(max-width:900px){
-    .plans-grid{grid-template-columns:1fr;max-width:420px;margin:0 auto}
-    .chat-grid{grid-template-columns:1fr}
-    .chat-side{display:none!important}
-  }
+  @media(max-width:900px){.plans-grid{grid-template-columns:1fr;max-width:420px;margin:0 auto}.chat-grid{grid-template-columns:1fr}.chat-side{display:none!important}}
   @media(max-width:640px){
     .nav-desk{display:none}.nav-burger{display:flex}.mob-menu{display:block}
     .notif{right:12px;left:12px;top:68px;text-align:center}
-    .hero-sec{padding:36px 16px 50px;min-height:auto}
-    .hero-grid{grid-template-columns:1fr;gap:30px}
-    .hero-h1{font-size:clamp(50px,18vw,78px)}
-    .hero-btns{flex-direction:column}
+    .hero-sec{padding:36px 16px 50px;min-height:auto}.hero-grid{grid-template-columns:1fr;gap:30px}
+    .hero-h1{font-size:clamp(50px,18vw,78px)}.hero-btns{flex-direction:column}
     .hero-btns button{width:100%;padding:14px!important;font-size:15px!important}
     .off-sec{padding:48px 16px}.off-inner h2{font-size:40px!important}
     .t5-sec{padding:48px 16px}.rank-num{font-size:34px}
     .dash-wrap{padding:20px 14px}.dash-head{flex-direction:column;align-items:flex-start}
-    .adm-wrap{padding:20px 14px}.adm-head{flex-direction:column}
-    .stats-row{gap:6px}
+    .adm-wrap{padding:20px 14px}.adm-head{flex-direction:column}.stats-row{gap:6px}
     .tab-btn{font-size:12px!important;padding:7px 10px!important}
-    .upload-zone{padding:24px 14px!important}
-    .modal{padding:24px 18px}
-    .msg-bubble{max-width:88%;font-size:13px}
-    .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-    table{min-width:500px}
-    .footer{padding:24px 14px 36px}
+    .upload-zone{padding:24px 14px!important}.modal{padding:24px 18px}
+    .msg-bubble{max-width:88%;font-size:13px}.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{min-width:500px}.footer{padding:24px 14px 36px}
   }
-  @media(max-width:380px){
-    .hero-h1{font-size:46px}.stats-row{grid-template-columns:1fr}
-    .plan-card{padding:20px 14px!important}
-  }
+  @media(max-width:380px){.hero-h1{font-size:46px}.stats-row{grid-template-columns:1fr}.plan-card{padding:20px 14px!important}}
 `;
 
 const Empty = ({ icon, text }) => <div className="empty-state"><span>{icon}</span><p>{text}</p></div>;
@@ -139,63 +123,65 @@ const Empty = ({ icon, text }) => <div className="empty-state"><span>{icon}</spa
 // ══════════════════════════════════════════════════════════════════════════════
 export default function BigSlameAcademy() {
 
-  // ── STATE ────────────────────────────────────────────────────────────────────
-  const [page, setPage]         = useState("home");
-  const [session, setSession]   = useState(null);
-  const [profile, setProfile]   = useState(null);
-  const [isAdmin, setIsAdmin]   = useState(false);
+  const [page, setPage]       = useState("home");
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [appLoading, setAppLoading] = useState(true);
 
-  const [showLogin, setShowLogin]       = useState(false);
-  const [loginForm, setLoginForm]       = useState({ email:"", password:"" });
-  const [loginError, setLoginError]     = useState("");
-  const [loginBusy, setLoginBusy]       = useState(false);
+  const [showLogin, setShowLogin]         = useState(false);
+  const [loginForm, setLoginForm]         = useState({ email:"", password:"" });
+  const [loginError, setLoginError]       = useState("");
+  const [loginBusy, setLoginBusy]         = useState(false);
   const [showAdminCode, setShowAdminCode] = useState(false);
-  const [adminCode, setAdminCode]       = useState("");
-  const [adminCodeErr, setAdminCodeErr] = useState("");
-  const [showRegister, setShowRegister] = useState(null);
-  const [burgerOpen, setBurgerOpen]     = useState(false);
-  const [notif, setNotif]               = useState({ msg:"", type:"ok" });
+  const [adminCode, setAdminCode]         = useState("");
+  const [adminCodeErr, setAdminCodeErr]   = useState("");
+  const [showRegister, setShowRegister]   = useState(null);
+  const [burgerOpen, setBurgerOpen]       = useState(false);
+  const [notif, setNotif]                 = useState({ msg:"", type:"ok" });
 
   // Données
-  const [beats, setBeats]         = useState([]);
-  const [top5, setTop5]           = useState([]);
-  const [students, setStudents]   = useState([]);
-  const [messages, setMessages]   = useState([]);
-  const [myBeats, setMyBeats]     = useState([]);
+  const [beats, setBeats]       = useState([]);
+  const [top5, setTop5]         = useState([]);
+  const [students, setStudents] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [myBeats, setMyBeats]   = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0); // badge messages non lus (admin)
 
-  // UI onglets
-  const [adminTab, setAdminTab]   = useState("students");
-  const [studTab, setStudTab]     = useState("resources");
-  const [chatWith, setChatWith]   = useState(null);   // élève sélectionné dans messagerie admin
+  // UI
+  const [adminTab, setAdminTab] = useState("students");
+  const [studTab, setStudTab]   = useState("resources");
+  const [chatWith, setChatWith] = useState(null);
 
   // Chat
-  const [chatMsg, setChatMsg]     = useState("");
-  const chatEndRef                = useRef(null);
+  const [chatMsg, setChatMsg]   = useState("");
+  const chatEndRef              = useRef(null);
 
-  // Audio player
-  const audioRef  = useRef(null);
-  const [playing, setPlaying]     = useState(null);
+  // Audio
+  const audioRef        = useRef(null);
+  const listenTimers    = useRef({});   // timers 15s par beat
+  const countedBeats    = useRef(new Set()); // beats déjà comptés cette session
+  const [playing, setPlaying]           = useState(null);
   const [audioProgress, setAudioProgress] = useState(0);
 
-  // Beat upload (admin)
-  const beatFileRef               = useRef();
+  // Beat upload admin
+  const beatFileRef = useRef();
   const [beatFile, setBeatFile]   = useState(null);
   const [newBeat, setNewBeat]     = useState({ title:"", bpm:"", style:"Drill" });
   const [beatBusy, setBeatBusy]   = useState(false);
 
-  // Création compte élève (admin)
-  const [newStudent, setNewStudent] = useState({ username:"", email:"", password:genPassword(), plan:"Silver" });
-  const [createBusy, setCreateBusy] = useState(false);
-  const [createdCreds, setCreatedCreds] = useState(null); // afficher après création
+  // Création compte élève
+  const [newStudent, setNewStudent]     = useState({ username:"", email:"", password:genPassword(), plan:"Silver" });
+  const [createBusy, setCreateBusy]     = useState(false);
+  const [createdCreds, setCreatedCreds] = useState(null);
 
-  // Top 5 édition
-  const [top5Edit, setTop5Edit]   = useState([]);
+  // Top 5
+  const [top5Edit, setTop5Edit] = useState([]);
 
-  // Upload beat élève
-  const studentFileRef            = useRef();
-  const [studentFile, setStudentFile] = useState(null);
-  const [uploadBusy, setUploadBusy]   = useState(false);
+  // Upload élève
+  const studentFileRef = useRef();
+  const [studentFile, setStudentFile]   = useState(null);
+  const [uploadBusy, setUploadBusy]     = useState(false);
 
   // ── HELPERS ──────────────────────────────────────────────────────────────────
   const notify = (msg, type="ok") => { setNotif({ msg, type }); setTimeout(() => setNotif({ msg:"", type:"ok" }), 4000); };
@@ -237,42 +223,39 @@ export default function BigSlameAcademy() {
     setTop5Edit(t5.map(s => ({ ...s })));
   };
 
-  // ── DONNÉES ÉLÈVE ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!session || isAdmin) return;
-    fetchStudentData();
-    const ch = supabase.channel("msg-rt-student")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages",
-          filter:`receiver_id=eq.${session.user.id}` },
-        p => setMessages(m => [...m, p.new]))
-      .subscribe();
-    return () => supabase.removeChannel(ch);
-  }, [session, isAdmin]);
-
+  // ── DONNÉES ÉLÈVE ─────────────────────────────────────────────────────────────
   const fetchStudentData = async () => {
+    if (!session) return;
     const uid = session.user.id;
+    // ✅ FIX: filtre précis — les messages entre cet élève et l'admin
     const [{ data:msgs }, { data:mb }] = await Promise.all([
       supabase.from("messages").select("*")
-        .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
+        .or(
+          `and(sender_id.eq.${uid},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${uid})`
+        )
         .order("created_at"),
-      supabase.from("student_beats").select("*")
-        .eq("student_id", uid).order("submitted_at", { ascending:false }),
+      supabase.from("student_beats").select("*").eq("student_id", uid).order("submitted_at", { ascending:false }),
     ]);
     setMessages(msgs || []);
     setMyBeats(mb || []);
   };
 
-  // ── DONNÉES ADMIN ────────────────────────────────────────────────────────────
+  // ── DONNÉES ADMIN ─────────────────────────────────────────────────────────────
   const fetchAdminData = async () => {
-    const { data } = await supabase.from("profiles").select("*")
-      .eq("is_admin", false).order("created_at", { ascending:false });
+    // ✅ FIX: exclut explicitement is_admin=true pour éviter comptage à zéro
+    const { data } = await supabase.from("profiles")
+      .select("*")
+      .eq("is_admin", false)
+      .order("created_at", { ascending:false });
     setStudents(data || []);
   };
 
-  // Recharger messages pour un élève sélectionné (admin)
+  // ✅ FIX: fetchConversation filtre précis élève ↔ admin dans les deux sens
   const fetchConversation = async (studentId) => {
     const { data } = await supabase.from("messages").select("*")
-      .or(`sender_id.eq.${studentId},receiver_id.eq.${studentId}`)
+      .or(
+        `and(sender_id.eq.${studentId},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${studentId})`
+      )
       .order("created_at");
     setMessages(data || []);
   };
@@ -285,7 +268,120 @@ export default function BigSlameAcademy() {
     chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [messages]);
 
-  // ── CONNEXION ÉLÈVE ──────────────────────────────────────────────────────────
+  // ── REALTIME — ÉLÈVE ──────────────────────────────────────────────────────────
+  // ✅ FIX: écoute en temps réel les messages reçus par l'élève (sender = admin)
+  useEffect(() => {
+    if (!session || isAdmin) return;
+    fetchStudentData();
+
+    const uid = session.user.id;
+    const ch = supabase.channel(`msg-eleve-${uid}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `receiver_id=eq.${uid}`,
+      }, payload => {
+        setMessages(m => [...m, payload.new]);
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(ch);
+  }, [session, isAdmin]);
+
+  // ── REALTIME — ADMIN ──────────────────────────────────────────────────────────
+  // ✅ FIX: écoute les nouveaux messages reçus par l'admin + nouveaux profils
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    // Nouveaux messages vers l'admin
+    const msgCh = supabase.channel("msg-admin-inbox")
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `receiver_id=eq.${ADMIN_ID}`,
+      }, payload => {
+        // Si l'onglet conversation est ouvert pour cet élève → ajoute le message
+        setChatWith(prev => {
+          if (prev && payload.new.sender_id === prev.id) {
+            setMessages(m => [...m, payload.new]);
+          } else {
+            // Sinon, incrémente le badge non lu
+            setUnreadCount(c => c + 1);
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+
+    // Nouveaux profils élèves + mises à jour (validation)
+    const profCh = supabase.channel("profiles-admin-rt")
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "profiles",
+      }, payload => {
+        if (!payload.new.is_admin) {
+          setStudents(s => [payload.new, ...s]);
+        }
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "profiles",
+      }, payload => {
+        if (!payload.new.is_admin) {
+          setStudents(s => s.map(st => st.id === payload.new.id ? payload.new : st));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(msgCh);
+      supabase.removeChannel(profCh);
+    };
+  }, [isAdmin]);
+
+  // ── AUDIO PLAYER + COMPTEUR DE PLAYS (15 secondes) ───────────────────────────
+  // ✅ FIX: incrémente plays via RPC Supabase après 15 secondes d'écoute continue
+  const incrementPlayCount = async (beatId) => {
+    await supabase.rpc("increment_plays", { beat_id: beatId });
+    setBeats(prev => prev.map(b => b.id === beatId ? { ...b, plays: (b.plays||0) + 1 } : b));
+  };
+
+  const togglePlay = (beat) => {
+    if (!audioRef.current) audioRef.current = new Audio();
+    const audio = audioRef.current;
+
+    if (playing === beat.id) {
+      audio.pause();
+      // Annule le timer 15s si on pause avant
+      if (listenTimers.current[beat.id]) {
+        clearTimeout(listenTimers.current[beat.id]);
+        delete listenTimers.current[beat.id];
+      }
+      setPlaying(null);
+    } else {
+      // Arrête le beat précédent et son timer
+      audio.pause();
+      if (playing && listenTimers.current[playing]) {
+        clearTimeout(listenTimers.current[playing]);
+        delete listenTimers.current[playing];
+      }
+
+      if (beat.audio_url) {
+        audio.src = beat.audio_url;
+        audio.play().catch(() => notify("Lecture impossible.", "error"));
+        audio.ontimeupdate = () => setAudioProgress(audio.duration ? (audio.currentTime/audio.duration)*100 : 0);
+        audio.onended = () => { setPlaying(null); setAudioProgress(0); };
+
+        // ✅ Démarre le timer 15s — un seul comptage par beat par session
+        if (!countedBeats.current.has(beat.id)) {
+          listenTimers.current[beat.id] = setTimeout(() => {
+            countedBeats.current.add(beat.id);
+            delete listenTimers.current[beat.id];
+            incrementPlayCount(beat.id);
+          }, 15000);
+        }
+      }
+      setPlaying(beat.id);
+    }
+  };
+
+  // ── CONNEXION ──────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     if (!loginForm.email || !loginForm.password) { setLoginError("Remplis tous les champs."); return; }
     setLoginBusy(true); setLoginError("");
@@ -296,11 +392,14 @@ export default function BigSlameAcademy() {
   };
 
   const handleLogout = async () => {
+    // Nettoie les timers audio
+    Object.values(listenTimers.current).forEach(clearTimeout);
+    listenTimers.current = {};
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     await supabase.auth.signOut();
     setProfile(null); setIsAdmin(false); setSession(null); go("home");
   };
 
-  // ── CODE ADMIN ───────────────────────────────────────────────────────────────
   const handleAdminCode = () => {
     if (adminCode === "0820") {
       setIsAdmin(true); setShowAdminCode(false); setAdminCode(""); setAdminCodeErr("");
@@ -308,22 +407,19 @@ export default function BigSlameAcademy() {
     } else { setAdminCodeErr("Code incorrect"); setAdminCode(""); }
   };
 
-  // ── VALIDER UN ÉLÈVE ─────────────────────────────────────────────────────────
+  // ── VALIDER UN ÉLÈVE ──────────────────────────────────────────────────────────
   const handleValidate = async (id) => {
     const { error } = await supabase.from("profiles").update({ is_validated:true }).eq("id", id);
     if (!error) { setStudents(s => s.map(st => st.id===id ? { ...st, is_validated:true } : st)); notify("✅ Élève validé !"); }
     else notify("Erreur : " + error.message, "error");
   };
 
-  // ── CRÉER COMPTE ÉLÈVE (admin) ───────────────────────────────────────────────
+  // ── CRÉER UN COMPTE ÉLÈVE ─────────────────────────────────────────────────────
   const handleCreateStudent = async () => {
     if (!newStudent.username.trim() || !newStudent.email.trim() || !newStudent.password.trim()) {
       notify("Remplis tous les champs.", "error"); return;
     }
     setCreateBusy(true);
-
-    // ✅ FIX : on appelle la route API serveur (qui utilise SERVICE_ROLE_KEY)
-    // supabase.auth.signUp() côté client causait "Invalid path in request URL"
     try {
       const res = await fetch("/api/create-student", {
         method: "POST",
@@ -336,99 +432,85 @@ export default function BigSlameAcademy() {
         }),
       });
       const result = await res.json();
-      if (!res.ok) {
-        notify("Erreur : " + result.error, "error");
-        setCreateBusy(false); return;
-      }
+      if (!res.ok) { notify("Erreur : " + result.error, "error"); setCreateBusy(false); return; }
       setCreatedCreds({ ...newStudent });
-      setNewStudent({ username: "", email: "", password: genPassword(), plan: "Silver" });
+      setNewStudent({ username:"", email:"", password:genPassword(), plan:"Silver" });
       notify("✅ Compte créé avec succès !");
       await fetchAdminData();
-    } catch (e) {
-      notify("Erreur réseau : " + e.message, "error");
-    }
+    } catch (e) { notify("Erreur réseau : " + e.message, "error"); }
     setCreateBusy(false);
   };
 
-  // ── PUBLIER UN BEAT (admin) ──────────────────────────────────────────────────
+  // ── PUBLIER UN BEAT ───────────────────────────────────────────────────────────
   const handlePublishBeat = async () => {
     if (!newBeat.title.trim()) { notify("Le titre est obligatoire.", "error"); return; }
     setBeatBusy(true);
-
     let audioUrl = null;
-
     if (beatFile) {
-      // ✅ FIX : on utilise UNIQUEMENT le timestamp comme nom de fichier
-      // Les espaces dans "MELO 108 BPM_2.mp3" causaient "Invalid path in request URL"
+      // ✅ FIX: nom de fichier = timestamp uniquement → pas d'espaces possibles
       const ext = beatFile.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "");
-      const safePath = `${Date.now()}.${ext}`;   // ex: 1712345678901.mp3  — aucun espace
-
-      const { error: upErr } = await supabase.storage
-        .from("beats")
-        .upload(safePath, beatFile, { contentType: beatFile.type, upsert: false });
-
-      if (upErr) {
-        notify("Erreur upload : " + upErr.message, "error");
-        setBeatBusy(false); return;
-      }
-      const { data: { publicUrl } } = supabase.storage.from("beats").getPublicUrl(safePath);
+      const safePath = `${Date.now()}.${ext}`;
+      const { error:upErr } = await supabase.storage.from("beats").upload(safePath, beatFile, { contentType:beatFile.type, upsert:false });
+      if (upErr) { notify("Erreur upload : " + upErr.message, "error"); setBeatBusy(false); return; }
+      const { data:{ publicUrl } } = supabase.storage.from("beats").getPublicUrl(safePath);
       audioUrl = publicUrl;
     }
-
     const { error } = await supabase.from("beats").insert({
       title: newBeat.title.trim(),
       bpm: newBeat.bpm ? parseInt(newBeat.bpm) : null,
-      style: newBeat.style,
-      audio_url: audioUrl,
-      is_published: true,
-      plays: 0,
+      style: newBeat.style, audio_url: audioUrl, is_published: true, plays: 0,
     });
-
-    if (error) { notify("Erreur publication : " + error.message, "error"); }
+    if (error) notify("Erreur publication : " + error.message, "error");
     else {
-      notify(`✅ "${newBeat.title}" publié sur la page d'accueil !`);
-      setNewBeat({ title: "", bpm: "", style: "Drill" });
-      setBeatFile(null);
+      notify(`✅ "${newBeat.title}" publié !`);
+      setNewBeat({ title:"", bpm:"", style:"Drill" }); setBeatFile(null);
       if (beatFileRef.current) beatFileRef.current.value = "";
       await fetchPublicData();
     }
     setBeatBusy(false);
   };
 
-  // ── SUPPRIMER UN BEAT ────────────────────────────────────────────────────────
   const handleDeleteBeat = async (beat) => {
     if (beat.audio_url) {
-      const path = beat.audio_url.split("/beats/")[1];
-      if (path) await supabase.storage.from("beats").remove([`beats/${path}`]);
+      const parts = beat.audio_url.split("/object/public/beats/");
+      if (parts[1]) await supabase.storage.from("beats").remove([parts[1]]);
     }
     await supabase.from("beats").delete().eq("id", beat.id);
-    notify("Beat supprimé.");
-    await fetchPublicData();
+    notify("Beat supprimé."); await fetchPublicData();
   };
 
-  // ── AUDIO PLAYER ─────────────────────────────────────────────────────────────
-  const togglePlay = (beat) => {
-    if (!audioRef.current) audioRef.current = new Audio();
-    const audio = audioRef.current;
-    if (playing === beat.id) {
-      audio.pause(); setPlaying(null);
+  // ── ENVOYER MESSAGE ───────────────────────────────────────────────────────────
+  // ✅ FIX: utilise ADMIN_ID comme receiver (élève→admin) ou sender (admin→élève)
+  const sendMsg = async () => {
+    if (!chatMsg.trim()) return;
+
+    let sender_id, receiver_id;
+    if (isAdmin) {
+      // Admin répond à l'élève sélectionné
+      if (!chatWith) { notify("Sélectionne un élève.", "error"); return; }
+      sender_id  = ADMIN_ID;
+      receiver_id = chatWith.id;
     } else {
-      audio.pause();
-      if (beat.audio_url) {
-        audio.src = beat.audio_url;
-        audio.play().catch(() => notify("Lecture impossible.", "error"));
-        audio.ontimeupdate = () => setAudioProgress(audio.duration ? (audio.currentTime/audio.duration)*100 : 0);
-        audio.onended = () => { setPlaying(null); setAudioProgress(0); };
-      }
-      setPlaying(beat.id);
+      // Élève envoie à l'admin
+      sender_id  = session?.user?.id;
+      receiver_id = ADMIN_ID;
+    }
+
+    const { error } = await supabase.from("messages").insert({ sender_id, receiver_id, content: chatMsg.trim() });
+    if (error) notify("Erreur envoi : " + error.message, "error");
+    else {
+      setChatMsg("");
+      if (!isAdmin) fetchStudentData();
+      else fetchConversation(chatWith.id);
     }
   };
 
-  // ── UPLOAD BEAT (élève) ──────────────────────────────────────────────────────
+  // ── UPLOAD BEAT ÉLÈVE ─────────────────────────────────────────────────────────
   const handleStudentUpload = async () => {
     if (!studentFile) { notify("Sélectionne un fichier.", "error"); return; }
     setUploadBusy(true);
-    const path = `${session.user.id}/${Date.now()}_${studentFile.name}`;
+    const ext = studentFile.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `${session.user.id}/${Date.now()}.${ext}`;
     const { error:upErr } = await supabase.storage.from("student-beats").upload(path, studentFile, { contentType:studentFile.type });
     if (upErr) { notify("Erreur upload : " + upErr.message, "error"); setUploadBusy(false); return; }
     const { error:dbErr } = await supabase.from("student_beats").insert({ student_id:session.user.id, file_url:path, file_name:studentFile.name, status:"pending" });
@@ -437,33 +519,23 @@ export default function BigSlameAcademy() {
     setUploadBusy(false);
   };
 
-  // ── ENVOYER MESSAGE ──────────────────────────────────────────────────────────
-  const sendMsg = async () => {
-    if (!chatMsg.trim()) return;
-    const senderId = isAdmin ? null : session?.user?.id;   // null = admin (à adapter selon ta logique)
-    const receiverId = isAdmin ? chatWith?.id : null;
-    const { error } = await supabase.from("messages").insert({
-      sender_id: senderId, receiver_id: receiverId, content: chatMsg.trim(),
-    });
-    if (error) notify("Erreur envoi : " + error.message, "error");
-    else { setChatMsg(""); if (!isAdmin) fetchStudentData(); else fetchConversation(chatWith.id); }
-  };
-
-  // ── SAUVEGARDER TOP 5 ────────────────────────────────────────────────────────
+  // ── SAUVEGARDER TOP 5 ─────────────────────────────────────────────────────────
   const saveTop5 = async () => {
     const updates = top5Edit.map(s =>
       supabase.from("top5").update({ student_name:s.student_name, beats_count:s.beats_count||0, style:s.style||"" }).eq("rank", s.rank)
     );
-    const results = await Promise.all(updates);
-    const hasErr = results.some(r => r.error);
-    if (hasErr) notify("Erreur sauvegarde.", "error");
-    else { notify("🏆 Top 5 mis à jour !"); fetchPublicData(); }
+    await Promise.all(updates);
+    notify("🏆 Top 5 mis à jour !"); fetchPublicData();
   };
 
-  // ── COPIER DANS PRESSE-PAPIER ────────────────────────────────────────────────
-  const copyToClipboard = (text) => { navigator.clipboard.writeText(text).then(() => notify("Copié ✓")); };
+  const copyToClipboard = (text) => navigator.clipboard.writeText(text).then(() => notify("Copié ✓"));
 
-  // ── NAV ──────────────────────────────────────────────────────────────────────
+  // ✅ Stats admin corrigées — filtre is_admin=false garanti
+  const activeStudents  = students.filter(s => !s.is_admin && s.is_validated);
+  const pendingStudents = students.filter(s => !s.is_admin && !s.is_validated);
+  const totalRevenue    = activeStudents.reduce((a, s) => a + (s.plan==="Silver"?21.99:s.plan==="Gold"?47.99:87.99), 0);
+
+  // ── NAV BUTTONS ───────────────────────────────────────────────────────────────
   const NavActions = ({ mob }) => {
     const bp = mob ? { width:"100%", padding:"12px", borderRadius:8, fontSize:15 } : { padding:"8px 18px", borderRadius:6, fontSize:14 };
     if (appLoading) return null;
@@ -475,7 +547,7 @@ export default function BigSlameAcademy() {
     );
     if (isAdmin) return (
       <>
-        <span style={{ fontSize:12, color:"#888" }}>Admin</span>
+        <span style={{fontSize:12,color:"#888"}}>Admin</span>
         <button className="btn-gold" style={bp} onClick={()=>go("admin")}>Dashboard</button>
         <button className="btn-outline" style={bp} onClick={handleLogout}>Déconnexion</button>
       </>
@@ -489,14 +561,13 @@ export default function BigSlameAcademy() {
     );
   };
 
-  // ══════════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
   return (
     <>
       <style>{CSS}</style>
-
       {notif.msg && <div className={`notif ${notif.type==="error"?"error":""}`}>{notif.type==="ok"?"✓ ":""}{notif.msg}</div>}
 
-      {/* ── NAV ───────────────────────────────────────────────────────────── */}
+      {/* NAV */}
       <nav className="nav">
         <div className="nav-inner">
           <button className="nav-logo" onClick={()=>go("home")}>
@@ -509,7 +580,7 @@ export default function BigSlameAcademy() {
         {burgerOpen && <div className="mob-menu slide-down"><div className="mob-inner"><NavActions mob /></div></div>}
       </nav>
 
-      {/* ── MODAL CODE ADMIN ──────────────────────────────────────────────── */}
+      {/* MODAL CODE ADMIN */}
       {showAdminCode && (
         <div className="overlay">
           <div className="card modal fade-in">
@@ -527,7 +598,7 @@ export default function BigSlameAcademy() {
         </div>
       )}
 
-      {/* ── MODAL CONNEXION ───────────────────────────────────────────────── */}
+      {/* MODAL CONNEXION */}
       {showLogin && (
         <div className="overlay">
           <div className="card modal fade-in">
@@ -561,7 +632,7 @@ export default function BigSlameAcademy() {
         </div>
       )}
 
-      {/* ── MODAL INSCRIPTION WHATSAPP ────────────────────────────────────── */}
+      {/* MODAL INSCRIPTION */}
       {showRegister && (
         <div className="overlay">
           <div className="card modal fade-in">
@@ -569,7 +640,7 @@ export default function BigSlameAcademy() {
               <span className="bebas" style={{fontSize:20,color:GOLD}}>PACK {showRegister.toUpperCase()}</span>
               <button onClick={()=>setShowRegister(null)} style={{background:"none",border:"none",color:"#888",cursor:"pointer",fontSize:20}}>✕</button>
             </div>
-            <p style={{color:"#888",fontSize:13,marginBottom:20,lineHeight:1.7}}>Pas de paiement automatique. Tu discutes avec BigSlame, tu paies par <strong style={{color:"#fff"}}>Mobile Money</strong> (Airtel, Orange…), et il active ton accès manuellement.</p>
+            <p style={{color:"#888",fontSize:13,marginBottom:20,lineHeight:1.7}}>Pas de paiement automatique. Tu discutes avec BigSlame et tu paies par <strong style={{color:"#fff"}}>Mobile Money</strong>.</p>
             <div style={{background:"#F5A62315",border:`1px solid ${GOLD}`,borderRadius:10,padding:16,marginBottom:20}}>
               <p style={{fontSize:12,color:GOLD,fontWeight:600,marginBottom:8}}>📱 Contact BigSlame</p>
               <p style={{fontSize:16,color:"#fff",fontWeight:700}}>+243 834 604 734</p>
@@ -582,13 +653,9 @@ export default function BigSlameAcademy() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          PAGE ACCUEIL
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════ PAGE ACCUEIL ══════════════════ */}
       {page==="home" && (
         <div className="fade-in">
-
-          {/* HERO */}
           <section className="hero-sec">
             <div className="hero-grid">
               <div>
@@ -628,9 +695,9 @@ export default function BigSlameAcademy() {
                       </div>
                       {playing===beat.id&&(
                         <>
-                          <div style={{display:"flex",alignItems:"center",gap:3,height:32,marginTop:8}}>
+                          <div style={{display:"flex",alignItems:"center",gap:3,height:30,marginTop:8}}>
                             {Array.from({length:20},(_,i)=>(
-                              <div key={i} className="waveform-bar" style={{width:3,height:Math.round(Math.random()*20+8),animationDelay:`${i*.05}s`}} />
+                              <div key={i} className="waveform-bar" style={{width:3,height:Math.round(Math.random()*18+8),animationDelay:`${i*.05}s`}} />
                             ))}
                           </div>
                           <div style={{marginTop:6,height:3,background:BORDER,borderRadius:2}}>
@@ -653,38 +720,23 @@ export default function BigSlameAcademy() {
                 <h2 className="bebas" style={{fontSize:56,color:"#fff",marginTop:8}}>CHOISIS TON PACK</h2>
               </div>
               <div className="plans-grid">
-                {/* SILVER */}
                 <div className="plan-card card" style={{padding:28,borderColor:"#C0C0C030"}}>
                   <span className="badge badge-silver" style={{marginBottom:16,display:"block"}}>SILVER</span>
                   <div style={{marginBottom:20}}><span className="bebas" style={{fontSize:48,color:"#C0C0C0"}}>$21</span><span style={{fontSize:22,color:"#C0C0C0"}}>.99</span></div>
-                  <ul style={{listStyle:"none",marginBottom:28}}>
-                    {["✓ Maîtrise FL Studio","✓ Style Drill","✓ 1 Drum Kit Drill","✗ Pas d'assistance"].map((f,i)=>(
-                      <li key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:14,color:f.startsWith("✗")?"#555":"#ccc"}}>{f}</li>
-                    ))}
-                  </ul>
+                  <ul style={{listStyle:"none",marginBottom:28}}>{["✓ Maîtrise FL Studio","✓ Style Drill","✓ 1 Drum Kit Drill","✗ Pas d'assistance"].map((f,i)=><li key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:14,color:f.startsWith("✗")?"#555":"#ccc"}}>{f}</li>)}</ul>
                   <button className="btn-outline" style={{width:"100%",padding:13,borderRadius:8,fontSize:14}} onClick={()=>setShowRegister("Silver")}>S'inscrire →</button>
                 </div>
-                {/* GOLD */}
                 <div className="plan-card featured" style={{padding:28,background:"#F5A62308"}}>
                   <div style={{position:"absolute",top:-12,left:"50%",transform:"translateX(-50%)",background:GOLD,color:"#000",padding:"4px 16px",borderRadius:99,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>POPULAIRE</div>
                   <span className="badge badge-gold" style={{marginBottom:16,display:"block"}}>GOLD</span>
                   <div style={{marginBottom:20}}><span className="bebas" style={{fontSize:48,color:GOLD}}>$47</span><span style={{fontSize:22,color:GOLD}}>.99</span></div>
-                  <ul style={{listStyle:"none",marginBottom:28}}>
-                    {["✓ 3 Styles (Drill, Trap, Afrobeat)","✓ 3 Drum Kits","✓ 1 mois d'assistance","✓ Envoi fichiers audio","✓ Chat privé"].map((f,i)=>(
-                      <li key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:14,color:"#ccc"}}>{f}</li>
-                    ))}
-                  </ul>
+                  <ul style={{listStyle:"none",marginBottom:28}}>{["✓ 3 Styles (Drill, Trap, Afrobeat)","✓ 3 Drum Kits","✓ 1 mois d'assistance","✓ Envoi fichiers audio","✓ Chat privé"].map((f,i)=><li key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:14,color:"#ccc"}}>{f}</li>)}</ul>
                   <button className="btn-gold" style={{width:"100%",padding:13,borderRadius:8,fontSize:14}} onClick={()=>setShowRegister("Gold")}>S'inscrire →</button>
                 </div>
-                {/* PLATINUM */}
                 <div className="plan-card card" style={{padding:28,borderColor:"#E5E4E230"}}>
                   <span className="badge badge-platinum" style={{marginBottom:16,display:"block"}}>PLATINUM</span>
                   <div style={{marginBottom:20}}><span className="bebas" style={{fontSize:48,color:"#E5E4E2"}}>$87</span><span style={{fontSize:22,color:"#E5E4E2"}}>.99</span></div>
-                  <ul style={{listStyle:"none",marginBottom:28}}>
-                    {["✓ 8+ Styles complets","✓ TOUS les Drum Kits","✓ 3 VST inclus (Nexus, Serum, Omni)","✓ 1 mois d'assistance","✓ Masterclass exclusive"].map((f,i)=>(
-                      <li key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:14,color:"#ccc"}}>{f}</li>
-                    ))}
-                  </ul>
+                  <ul style={{listStyle:"none",marginBottom:28}}>{["✓ 8+ Styles complets","✓ TOUS les Drum Kits","✓ 3 VST inclus (Nexus, Serum, Omni)","✓ 1 mois d'assistance","✓ Masterclass exclusive"].map((f,i)=><li key={i} style={{padding:"8px 0",borderBottom:`1px solid ${BORDER}`,fontSize:14,color:"#ccc"}}>{f}</li>)}</ul>
                   <button className="btn-outline" style={{width:"100%",padding:13,borderRadius:8,fontSize:14,borderColor:"#E5E4E250",color:"#E5E4E2"}} onClick={()=>setShowRegister("Platinum")}>S'inscrire →</button>
                 </div>
               </div>
@@ -704,22 +756,18 @@ export default function BigSlameAcademy() {
               {top5.length===0
                 ? <Empty icon="🏆" text="Le classement apparaîtra ici dès les premiers élèves." />
                 : top5.map((s,i)=>{
-                  const name = s.student_name||"—";
-                  const beats = s.beats_count||0;
-                  const maxB = top5[0]?.beats_count||1;
+                  const name=s.student_name||"—", bc=s.beats_count||0, maxB=top5[0]?.beats_count||1;
                   return (
                     <div key={s.rank} className="card" style={{display:"flex",alignItems:"center",gap:14,padding:"13px 18px",marginBottom:10}}>
                       <span className={`rank-num ${i===0?"top":""}`}>{s.rank}</span>
-                      <div style={{width:36,height:36,borderRadius:"50%",background:i===0?`${GOLD}22`:SURF2,border:`1px solid ${i===0?GOLD:BORDER}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:i===0?GOLD:"#888",flexShrink:0}}>
-                        {name.slice(0,2).toUpperCase()}
-                      </div>
+                      <div style={{width:36,height:36,borderRadius:"50%",background:i===0?`${GOLD}22`:SURF2,border:`1px solid ${i===0?GOLD:BORDER}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:i===0?GOLD:"#888",flexShrink:0}}>{name.slice(0,2).toUpperCase()}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <p style={{fontWeight:600,fontSize:14,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{name}</p>
                         <p style={{fontSize:12,color:"#888"}}>{s.style||"—"}</p>
                       </div>
                       <div style={{textAlign:"right",minWidth:86,flexShrink:0}}>
-                        <p style={{fontSize:13,color:GOLD,fontWeight:600,marginBottom:5}}>{beats} beats</p>
-                        <div className="progress-bar" style={{width:86}}><div className="progress-fill" style={{width:`${Math.round((beats/maxB)*100)}%`}} /></div>
+                        <p style={{fontSize:13,color:GOLD,fontWeight:600,marginBottom:5}}>{bc} beats</p>
+                        <div className="progress-bar" style={{width:86}}><div className="progress-fill" style={{width:`${Math.round((bc/maxB)*100)}%`}} /></div>
                       </div>
                     </div>
                   );
@@ -736,9 +784,7 @@ export default function BigSlameAcademy() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          ESPACE ÉLÈVE
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════ ESPACE ÉLÈVE ══════════════════ */}
       {page==="dashboard" && session && !isAdmin && (
         <div className="dash-wrap fade-in">
           <div className="dash-head">
@@ -765,7 +811,6 @@ export default function BigSlameAcademy() {
             ))}
           </div>
 
-          {/* Ressources */}
           {studTab==="resources"&&(
             <div style={{display:"grid",gap:10}}>
               {(RESOURCES[profile?.plan]||RESOURCES.Silver).map((r,i)=>(
@@ -781,7 +826,6 @@ export default function BigSlameAcademy() {
             </div>
           )}
 
-          {/* Upload beat */}
           {studTab==="upload"&&(
             <>
               {profile?.plan==="Silver"
@@ -797,7 +841,7 @@ export default function BigSlameAcademy() {
                       <input ref={studentFileRef} type="file" accept=".mp3,.wav" style={{display:"none"}} onChange={e=>setStudentFile(e.target.files[0])} />
                       <span style={{fontSize:42}}>🎵</span>
                       <p style={{color:studentFile?GOLD:"#888",marginTop:10,fontSize:14,fontWeight:studentFile?600:400}}>
-                        {studentFile?`✓ ${studentFile.name}`:"Glisse ton fichier ici ou clique pour sélectionner"}
+                        {studentFile?`✓ ${studentFile.name}`:"Glisse ton fichier ici ou clique"}
                       </p>
                       <p style={{fontSize:12,color:"#555",marginTop:6}}>.mp3 ou .wav — Max 100 MB</p>
                     </div>
@@ -831,7 +875,6 @@ export default function BigSlameAcademy() {
             </>
           )}
 
-          {/* Chat élève */}
           {studTab==="chat"&&(
             <div className="card" style={{display:"flex",flexDirection:"column",height:460}}>
               <div style={{padding:"13px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10}}>
@@ -842,7 +885,7 @@ export default function BigSlameAcademy() {
                 {messages.length===0
                   ? <Empty icon="💬" text="Pas encore de message. Dis bonjour !" />
                   : messages.map(msg=>{
-                    const mine = msg.sender_id===session.user.id;
+                    const mine=msg.sender_id===session.user.id;
                     return (
                       <div key={msg.id} style={{display:"flex",justifyContent:mine?"flex-end":"flex-start"}}>
                         <div>
@@ -864,22 +907,20 @@ export default function BigSlameAcademy() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          ADMIN DASHBOARD
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ══════════════════ ADMIN DASHBOARD ══════════════════ */}
       {page==="admin" && isAdmin && (
         <div className="adm-wrap fade-in">
-
           <div className="adm-head">
             <div>
               <h2 className="bebas" style={{fontSize:32,color:"#fff"}}>ADMIN DASHBOARD</h2>
               <p style={{color:"#888",fontSize:13}}>BigSlame 👑</p>
             </div>
+            {/* ✅ FIX stats — utilise les variables filtrées activeStudents / pendingStudents */}
             <div className="stats-row">
               {[
-                { label:"Actifs",    val:students.filter(s=>s.is_validated).length },
-                { label:"Attente",   val:students.filter(s=>!s.is_validated).length },
-                { label:"Revenus",   val:"$"+students.filter(s=>s.is_validated).reduce((a,s)=>a+(s.plan==="Silver"?21.99:s.plan==="Gold"?47.99:87.99),0).toFixed(0) },
+                { label:"Élèves actifs", val:activeStudents.length },
+                { label:"En attente",    val:pendingStudents.length },
+                { label:"Revenus/mois",  val:"$"+totalRevenue.toFixed(0) },
               ].map(m=>(
                 <div key={m.label} className="card2" style={{padding:"12px 10px",textAlign:"center"}}>
                   <p style={{fontSize:11,color:"#888"}}>{m.label}</p>
@@ -890,24 +931,29 @@ export default function BigSlameAcademy() {
           </div>
 
           <div className="tabs-row">
-            {[["students","👥 Élèves"],["create","➕ Créer un compte"],["beats","🎵 Poster un Beat"],["messages","💬 Messages"],["top5","🏆 Top 5"]].map(([t,l])=>(
-              <button key={t} className={`tab-btn ${adminTab===t?"active":""}`} style={{padding:"8px 14px",fontSize:13}} onClick={()=>{setAdminTab(t);setCreatedCreds(null);}}>
+            {[
+              ["students","👥 Élèves"],
+              ["create","➕ Créer un compte"],
+              ["beats","🎵 Poster un Beat"],
+              ["messages", unreadCount>0 ? `💬 Messages (${unreadCount})` : "💬 Messages"],
+              ["top5","🏆 Top 5"],
+            ].map(([t,l])=>(
+              <button key={t} className={`tab-btn ${adminTab===t?"active":""}`} style={{padding:"8px 14px",fontSize:13,position:"relative"}}
+                onClick={()=>{ setAdminTab(t); setCreatedCreds(null); if(t==="messages") setUnreadCount(0); }}>
                 {l}
               </button>
             ))}
           </div>
 
-          {/* ── ÉLÈVES ── */}
+          {/* ÉLÈVES */}
           {adminTab==="students"&&(
             <div>
-              {students.filter(s=>!s.is_validated).length>0&&(
+              {pendingStudents.length>0&&(
                 <div style={{background:"#f9731610",border:"1px solid #f9731630",borderRadius:10,padding:14,marginBottom:18}}>
-                  <p style={{color:"#f97316",fontWeight:600,fontSize:14,marginBottom:10}}>⏳ {students.filter(s=>!s.is_validated).length} inscription(s) en attente de validation</p>
-                  {students.filter(s=>!s.is_validated).map(s=>(
+                  <p style={{color:"#f97316",fontWeight:600,fontSize:14,marginBottom:10}}>⏳ {pendingStudents.length} inscription(s) en attente</p>
+                  {pendingStudents.map(s=>(
                     <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,background:SURF2,borderRadius:8,padding:"10px 12px",marginBottom:8,flexWrap:"wrap"}}>
-                      <div style={{width:30,height:30,borderRadius:"50%",background:"#f9731622",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#f97316",flexShrink:0}}>
-                        {(s.username||"?").slice(0,2).toUpperCase()}
-                      </div>
+                      <div style={{width:30,height:30,borderRadius:"50%",background:"#f9731622",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#f97316",flexShrink:0}}>{(s.username||"?").slice(0,2).toUpperCase()}</div>
                       <div style={{flex:1,minWidth:80}}>
                         <p style={{fontWeight:600,fontSize:14}}>{s.username||"Inconnu"}</p>
                         <p style={{fontSize:12,color:"#888"}}>Pack {s.plan||"—"}</p>
@@ -917,26 +963,24 @@ export default function BigSlameAcademy() {
                   ))}
                 </div>
               )}
-              {students.filter(s=>s.is_validated).length===0
-                ? <Empty icon="👥" text="Aucun élève actif. Utilise l'onglet ➕ Créer un compte pour ajouter tes premiers élèves." />
+              {activeStudents.length===0
+                ? <Empty icon="👥" text="Aucun élève actif. Utilise ➕ Créer un compte pour en ajouter." />
                 : (
                   <div className="tbl-scroll">
                     <table style={{width:"100%",borderCollapse:"collapse"}}>
                       <thead>
                         <tr style={{borderBottom:`1px solid ${BORDER}`}}>
-                          {["Élève","Plan","Statut","Date d'inscription"].map(h=>(
+                          {["Élève","Plan","Statut","Inscription"].map(h=>(
                             <th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:11,color:"#555",letterSpacing:1,whiteSpace:"nowrap"}}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {students.filter(s=>s.is_validated).map(s=>(
+                        {activeStudents.map(s=>(
                           <tr key={s.id} style={{borderBottom:`1px solid ${BORDER}`}}>
                             <td style={{padding:"10px"}}>
                               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                                <div style={{width:28,height:28,borderRadius:"50%",background:`${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:GOLD,flexShrink:0}}>
-                                  {(s.username||"?").slice(0,2).toUpperCase()}
-                                </div>
+                                <div style={{width:28,height:28,borderRadius:"50%",background:`${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:GOLD,flexShrink:0}}>{(s.username||"?").slice(0,2).toUpperCase()}</div>
                                 <span style={{fontSize:13}}>{s.username||s.id.slice(0,8)}</span>
                               </div>
                             </td>
@@ -953,37 +997,28 @@ export default function BigSlameAcademy() {
             </div>
           )}
 
-          {/* ── CRÉER UN COMPTE ÉLÈVE ── */}
+          {/* CRÉER UN COMPTE */}
           {adminTab==="create"&&(
             <div style={{maxWidth:540}}>
-              <p style={{color:"#888",fontSize:14,marginBottom:24,lineHeight:1.7}}>
-                Quand un élève paie par Mobile Money, tu crées ici son compte. Il recevra ses identifiants pour se connecter à son espace.
-              </p>
-
-              {/* Formulaire création */}
+              <p style={{color:"#888",fontSize:14,marginBottom:24,lineHeight:1.7}}>Quand un élève paie par Mobile Money, crée son compte ici. Il reçoit ses identifiants pour se connecter.</p>
               {!createdCreds?(
                 <div className="card" style={{padding:28}}>
                   <h3 style={{color:GOLD,fontSize:13,letterSpacing:2,marginBottom:20}}>NOUVEAU COMPTE ÉLÈVE</h3>
                   <div style={{display:"grid",gap:14}}>
                     <div>
                       <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Nom d'utilisateur *</label>
-                      <input className="input" placeholder="ex: LilBeatz_Kinshasa" value={newStudent.username}
-                        onChange={e=>setNewStudent(s=>({...s,username:e.target.value}))} />
+                      <input className="input" placeholder="ex: LilBeatz_Kinshasa" value={newStudent.username} onChange={e=>setNewStudent(s=>({...s,username:e.target.value}))} />
                     </div>
                     <div>
                       <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Email *</label>
-                      <input className="input" type="email" placeholder="eleve@email.com" value={newStudent.email}
-                        onChange={e=>setNewStudent(s=>({...s,email:e.target.value}))} />
+                      <input className="input" type="email" placeholder="eleve@email.com" value={newStudent.email} onChange={e=>setNewStudent(s=>({...s,email:e.target.value}))} />
                     </div>
                     <div>
                       <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Mot de passe *</label>
                       <div style={{display:"flex",gap:8}}>
-                        <input className="input" value={newStudent.password}
-                          onChange={e=>setNewStudent(s=>({...s,password:e.target.value}))} style={{flex:1}} />
-                        <button className="btn-outline" style={{padding:"0 14px",borderRadius:6,fontSize:12,whiteSpace:"nowrap"}}
-                          onClick={()=>setNewStudent(s=>({...s,password:genPassword()}))}>🔄 Générer</button>
+                        <input className="input" value={newStudent.password} onChange={e=>setNewStudent(s=>({...s,password:e.target.value}))} style={{flex:1}} />
+                        <button className="btn-outline" style={{padding:"0 14px",borderRadius:6,fontSize:12,whiteSpace:"nowrap"}} onClick={()=>setNewStudent(s=>({...s,password:genPassword()}))}>🔄 Générer</button>
                       </div>
-                      <p style={{fontSize:11,color:"#555",marginTop:6}}>Note ce mot de passe — tu l'enverras à l'élève</p>
                     </div>
                     <div>
                       <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Abonnement payé *</label>
@@ -993,108 +1028,73 @@ export default function BigSlameAcademy() {
                         <option value="Platinum">Platinum — $87.99</option>
                       </select>
                     </div>
-                    <button className="btn-gold" style={{padding:14,borderRadius:8,fontSize:15,marginTop:4}}
-                      onClick={handleCreateStudent} disabled={createBusy}>
+                    <button className="btn-gold" style={{padding:14,borderRadius:8,fontSize:15,marginTop:4}} onClick={handleCreateStudent} disabled={createBusy}>
                       {createBusy?"Création en cours…":"✅ Créer le compte élève"}
                     </button>
                   </div>
                 </div>
               ):(
-                /* Identifiants générés */
                 <div>
                   <div style={{background:"#22c55e15",border:"1px solid #22c55e40",borderRadius:12,padding:20,marginBottom:20}}>
-                    <p style={{color:"#22c55e",fontWeight:700,fontSize:15,marginBottom:4}}>✅ Compte créé avec succès !</p>
-                    <p style={{fontSize:13,color:"#888"}}>Envoie ces identifiants à <strong style={{color:"#fff"}}>{createdCreds.username}</strong> sur WhatsApp.</p>
+                    <p style={{color:"#22c55e",fontWeight:700,fontSize:15,marginBottom:4}}>✅ Compte créé !</p>
+                    <p style={{fontSize:13,color:"#888"}}>Envoie ces identifiants à <strong style={{color:"#fff"}}>{createdCreds.username}</strong></p>
                   </div>
-
-                  {[
-                    { label:"Nom d'utilisateur", val:createdCreds.username },
-                    { label:"Email de connexion", val:createdCreds.email },
-                    { label:"Mot de passe",       val:createdCreds.password },
-                    { label:"Abonnement",          val:createdCreds.plan },
-                    { label:"Lien de connexion",   val:typeof window!=="undefined"?`${window.location.origin}`:"https://bigslame-academy.vercel.app" },
-                  ].map(({ label, val })=>(
+                  {[{label:"Nom d'utilisateur",val:createdCreds.username},{label:"Email",val:createdCreds.email},{label:"Mot de passe",val:createdCreds.password},{label:"Abonnement",val:createdCreds.plan}].map(({label,val})=>(
                     <div key={label} style={{marginBottom:12}}>
                       <p style={{fontSize:12,color:"#888",marginBottom:4}}>{label}</p>
-                      <div className="copy-box" onClick={()=>copyToClipboard(val)}>{val} <span style={{color:"#555",fontSize:11}}>(clic pour copier)</span></div>
+                      <div className="copy-box" onClick={()=>copyToClipboard(val)}>{val} <span style={{color:"#555",fontSize:11}}>(clic = copier)</span></div>
                     </div>
                   ))}
-
                   <div style={{display:"flex",gap:10,marginTop:20}}>
                     <button className="btn-gold" style={{flex:1,padding:13,borderRadius:8,fontSize:14}}
-                      onClick={()=>{
-                        const msg = `Bonjour ${createdCreds.username} ! 🎹\n\nTon compte BigSlame Academy est actif !\n\n📧 Email : ${createdCreds.email}\n🔑 Mot de passe : ${createdCreds.password}\n🎓 Abonnement : ${createdCreds.plan}\n\n🔗 Connexion : ${typeof window!=="undefined"?window.location.origin:""}\n\nBienvenue dans l'académie ! 🔥`;
-                        window.open(`https://wa.me/243834604734?text=${encodeURIComponent(msg)}`,"_blank");
-                      }}>
+                      onClick={()=>window.open(`https://wa.me/243834604734?text=${encodeURIComponent(`Bonjour ${createdCreds.username} ! 🎹\n\nTon compte BigSlame Academy est actif !\n\n📧 Email : ${createdCreds.email}\n🔑 Mot de passe : ${createdCreds.password}\n🎓 Pack : ${createdCreds.plan}\n\nConnecte-toi sur : big-slame-academy.vercel.app\n\nBienvenue 🔥`)}`,"_blank")}>
                       💬 Envoyer sur WhatsApp
                     </button>
-                    <button className="btn-outline" style={{padding:13,borderRadius:8,fontSize:14}}
-                      onClick={()=>{ setCreatedCreds(null); setNewStudent({ username:"", email:"", password:genPassword(), plan:"Silver" }); }}>
-                      + Nouveau compte
-                    </button>
+                    <button className="btn-outline" style={{padding:13,borderRadius:8,fontSize:14}} onClick={()=>{setCreatedCreds(null);setNewStudent({username:"",email:"",password:genPassword(),plan:"Silver"});}}>+ Nouveau</button>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── POSTER UN BEAT ── */}
+          {/* POSTER UN BEAT */}
           {adminTab==="beats"&&(
             <div style={{maxWidth:560}}>
               <div className="card" style={{padding:24,marginBottom:20}}>
                 <h3 style={{color:GOLD,fontSize:12,letterSpacing:2,marginBottom:20}}>AJOUTER UN BEAT</h3>
                 <div style={{display:"grid",gap:14}}>
                   <div>
-                    <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Titre du beat *</label>
-                    <input className="input" placeholder="ex: Midnight Drill Vol.4" value={newBeat.title}
-                      onChange={e=>setNewBeat(b=>({...b,title:e.target.value}))} />
+                    <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Titre *</label>
+                    <input className="input" placeholder="ex: Midnight Drill Vol.4" value={newBeat.title} onChange={e=>setNewBeat(b=>({...b,title:e.target.value}))} />
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                     <div>
                       <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>BPM</label>
-                      <input className="input" type="number" placeholder="140" value={newBeat.bpm}
-                        onChange={e=>setNewBeat(b=>({...b,bpm:e.target.value}))} />
+                      <input className="input" type="number" placeholder="140" value={newBeat.bpm} onChange={e=>setNewBeat(b=>({...b,bpm:e.target.value}))} />
                     </div>
                     <div>
                       <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Style</label>
-                      <select className="input" value={newBeat.style} onChange={e=>setNewBeat(b=>({...b,style:e.target.value}))}>
-                        <option>Drill</option><option>Trap</option><option>Afrobeat</option><option>Autre</option>
-                      </select>
+                      <select className="input" value={newBeat.style} onChange={e=>setNewBeat(b=>({...b,style:e.target.value}))}><option>Drill</option><option>Trap</option><option>Afrobeat</option><option>Autre</option></select>
                     </div>
                   </div>
-
-                  {/* UPLOAD FICHIER AUDIO */}
                   <div>
                     <label style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Fichier audio (.mp3 / .wav)</label>
-                    <input ref={beatFileRef} type="file" accept=".mp3,.wav,audio/*" style={{display:"none"}}
-                      onChange={e=>setBeatFile(e.target.files[0])} />
+                    <input ref={beatFileRef} type="file" accept=".mp3,.wav,audio/*" style={{display:"none"}} onChange={e=>setBeatFile(e.target.files[0])} />
                     <div className={`upload-zone ${beatFile?"active":""}`} style={{padding:"20px 16px"}} onClick={()=>beatFileRef.current?.click()}>
                       <span style={{fontSize:32}}>{beatFile?"🎵":"📁"}</span>
-                      <p style={{color:beatFile?GOLD:"#888",fontSize:13,marginTop:8,fontWeight:beatFile?600:400}}>
-                        {beatFile?`✓ ${beatFile.name}`:"Clique pour sélectionner ton audio"}
-                      </p>
-                      <p style={{fontSize:11,color:"#555",marginTop:4}}>MP3 ou WAV — le fichier sera hébergé sur Supabase Storage</p>
+                      <p style={{color:beatFile?GOLD:"#888",fontSize:13,marginTop:8,fontWeight:beatFile?600:400}}>{beatFile?`✓ ${beatFile.name}`:"Clique pour sélectionner"}</p>
+                      <p style={{fontSize:11,color:"#555",marginTop:4}}>MP3 ou WAV — hébergé sur Supabase Storage</p>
                     </div>
-                    {beatFile&&(
-                      <button style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:12,marginTop:6}}
-                        onClick={()=>{setBeatFile(null);if(beatFileRef.current)beatFileRef.current.value="";}}>
-                        ✕ Retirer le fichier
-                      </button>
-                    )}
+                    {beatFile&&<button style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:12,marginTop:6}} onClick={()=>{setBeatFile(null);if(beatFileRef.current)beatFileRef.current.value="";}}>✕ Retirer</button>}
                   </div>
-
                   <button className="btn-gold" style={{padding:14,borderRadius:8,fontSize:15}} onClick={handlePublishBeat} disabled={beatBusy}>
-                    {beatBusy?`${beatFile?"Upload en cours…":"Publication…"}`:"🚀 Publier sur la page d'accueil"}
+                    {beatBusy?(beatFile?"Upload en cours…":"Publication…"):"🚀 Publier sur la page d'accueil"}
                   </button>
-                  <p style={{fontSize:12,color:"#555",marginTop:-8}}>
-                    ⚠️ Sans fichier audio, le beat sera publié sans son (tu pourras l'ajouter plus tard dans Supabase).
-                  </p>
                 </div>
               </div>
-
               <h4 style={{color:"#888",fontSize:11,letterSpacing:2,marginBottom:12}}>BEATS PUBLIÉS ({beats.length})</h4>
               {beats.length===0
-                ? <Empty icon="🎛️" text="Aucun beat publié. Ajoute ton premier son ci-dessus." />
+                ? <Empty icon="🎛️" text="Aucun beat publié." />
                 : beats.map(b=>(
                   <div key={b.id} className="card2" style={{display:"flex",alignItems:"center",padding:"12px 14px",marginBottom:8,gap:10}}>
                     <span style={{fontSize:20,flexShrink:0}}>🎵</span>
@@ -1103,35 +1103,32 @@ export default function BigSlameAcademy() {
                       <div style={{display:"flex",gap:8,marginTop:2}}>
                         {b.bpm&&<span style={{fontSize:11,color:"#888"}}>{b.bpm} BPM</span>}
                         <span style={{fontSize:11,color:GOLD}}>{b.style}</span>
-                        {!b.audio_url&&<span style={{fontSize:11,color:"#f97316"}}>⚠ Sans audio</span>}
+                        <span style={{fontSize:11,color:"#555"}}>{(b.plays||0)} plays</span>
                       </div>
                     </div>
-                    <button className="btn-red" style={{padding:"6px 12px",borderRadius:6,fontSize:12,flexShrink:0}}
-                      onClick={()=>handleDeleteBeat(b)}>🗑 Supprimer</button>
+                    <button className="btn-red" style={{padding:"6px 12px",borderRadius:6,fontSize:12,flexShrink:0}} onClick={()=>handleDeleteBeat(b)}>🗑</button>
                   </div>
                 ))
               }
             </div>
           )}
 
-          {/* ── MESSAGES ── */}
+          {/* MESSAGES */}
           {adminTab==="messages"&&(
             <div className="chat-grid">
               <div className="card chat-side" style={{overflow:"hidden"}}>
                 <div style={{padding:"12px 14px",borderBottom:`1px solid ${BORDER}`}}>
                   <p style={{fontSize:11,fontWeight:600,color:"#888",letterSpacing:1}}>ÉLÈVES ACTIFS</p>
                 </div>
-                {students.filter(s=>s.is_validated).length===0
+                {activeStudents.length===0
                   ? <p style={{padding:16,fontSize:12,color:"#555"}}>Aucun élève.</p>
-                  : students.filter(s=>s.is_validated).map(s=>(
+                  : activeStudents.map(s=>(
                     <div key={s.id}
                       style={{padding:"10px 12px",borderBottom:`1px solid ${BORDER}`,cursor:"pointer",background:chatWith?.id===s.id?SURF2:"transparent",transition:"background .15s"}}
                       onClick={()=>setChatWith(s)}>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <div style={{width:28,height:28,borderRadius:"50%",background:`${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:GOLD,flexShrink:0}}>
-                          {(s.username||"?").slice(0,2).toUpperCase()}
-                        </div>
-                        <div>
+                        <div style={{width:28,height:28,borderRadius:"50%",background:`${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:GOLD,flexShrink:0}}>{(s.username||"?").slice(0,2).toUpperCase()}</div>
+                        <div style={{flex:1,minWidth:0}}>
                           <p style={{fontWeight:600,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.username}</p>
                           <span className={`badge badge-${(s.plan||"silver").toLowerCase()}`} style={{fontSize:10}}>{s.plan}</span>
                         </div>
@@ -1148,9 +1145,7 @@ export default function BigSlameAcademy() {
                 ):(
                   <>
                     <div style={{padding:"13px 16px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10}}>
-                      <div style={{width:32,height:32,borderRadius:"50%",background:`${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:GOLD}}>
-                        {chatWith.username.slice(0,2).toUpperCase()}
-                      </div>
+                      <div style={{width:32,height:32,borderRadius:"50%",background:`${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:GOLD}}>{chatWith.username.slice(0,2).toUpperCase()}</div>
                       <div>
                         <p style={{fontWeight:600,fontSize:14}}>{chatWith.username}</p>
                         <span className={`badge badge-${chatWith.plan?.toLowerCase()||"silver"}`} style={{fontSize:10}}>{chatWith.plan}</span>
@@ -1158,9 +1153,9 @@ export default function BigSlameAcademy() {
                     </div>
                     <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:10,minHeight:260}}>
                       {messages.length===0
-                        ? <Empty icon="💬" text="Pas encore de message avec cet élève." />
+                        ? <Empty icon="💬" text="Pas encore de message." />
                         : messages.map(msg=>{
-                          const mine = !msg.sender_id || msg.sender_id!==chatWith.id;
+                          const mine=msg.sender_id===ADMIN_ID;
                           return (
                             <div key={msg.id} style={{display:"flex",justifyContent:mine?"flex-end":"flex-start"}}>
                               <div>
@@ -1174,8 +1169,7 @@ export default function BigSlameAcademy() {
                       <div ref={chatEndRef} />
                     </div>
                     <div style={{padding:"10px 14px",borderTop:`1px solid ${BORDER}`,display:"flex",gap:8}}>
-                      <input className="input" placeholder={`Répondre à ${chatWith.username}…`} value={chatMsg}
-                        onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMsg()} style={{flex:1}} />
+                      <input className="input" placeholder={`Répondre à ${chatWith.username}…`} value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendMsg()} style={{flex:1}} />
                       <button className="btn-gold" style={{padding:"10px 16px",borderRadius:6,fontSize:16,flexShrink:0}} onClick={sendMsg}>→</button>
                     </div>
                   </>
@@ -1184,12 +1178,12 @@ export default function BigSlameAcademy() {
             </div>
           )}
 
-          {/* ── TOP 5 ── */}
+          {/* TOP 5 */}
           {adminTab==="top5"&&(
             <div style={{maxWidth:520}}>
               <p style={{color:"#888",fontSize:13,marginBottom:18}}>Modifie le classement manuellement chaque semaine.</p>
               {top5Edit.length===0
-                ? <Empty icon="🏆" text="Aucune entrée (crée les 5 lignes dans Supabase → table top5)." />
+                ? <Empty icon="🏆" text="Aucune entrée (crée 5 lignes dans Supabase → table top5)." />
                 : top5Edit.map((s,i)=>(
                   <div key={s.rank} className="card2" style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:10}}>
                     <span className="bebas" style={{fontSize:26,color:i===0?GOLD:"#444",minWidth:32}}>#{s.rank}</span>
@@ -1201,14 +1195,9 @@ export default function BigSlameAcademy() {
                   </div>
                 ))
               }
-              {top5Edit.length>0&&(
-                <button className="btn-gold" style={{padding:"12px 28px",borderRadius:8,fontSize:14,marginTop:6}} onClick={saveTop5}>
-                  💾 Sauvegarder le Top 5
-                </button>
-              )}
+              {top5Edit.length>0&&<button className="btn-gold" style={{padding:"12px 28px",borderRadius:8,fontSize:14,marginTop:6}} onClick={saveTop5}>💾 Sauvegarder</button>}
             </div>
           )}
-
         </div>
       )}
     </>
