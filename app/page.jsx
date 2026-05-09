@@ -440,14 +440,29 @@ export default function BigSlameAcademy() {
   // ── ENVOYER MESSAGE ──────────────────────────────────────────────────────────
   const sendMsg = async () => {
     if (!chatMsg.trim()) return;
-    const senderId = isAdmin ? null : session?.user?.id;   // null = admin (à adapter selon ta logique)
-    const receiverId = isAdmin ? chatWith?.id : null;
+
+    // REMPLACE cette suite de lettres par ton ID copié dans Supabase
+    const ADMIN_ID = "d94ea2f0-abc0-4675-a491-8b990f1afc17"; 
+
+    // Logique corrigée : On n'utilise plus "null"
+    const senderId = isAdmin ? ADMIN_ID : session?.user?.id;
+    const receiverId = isAdmin ? chatWith?.id : ADMIN_ID;
+
     const { error } = await supabase.from("messages").insert({
-      sender_id: senderId, receiver_id: receiverId, content: chatMsg.trim(),
+      sender_id: senderId, 
+      receiver_id: receiverId, 
+      content: chatMsg.trim(),
     });
-    if (error) notify("Erreur envoi : " + error.message, "error");
-    else { setChatMsg(""); if (!isAdmin) fetchStudentData(); else fetchConversation(chatWith.id); }
-  };
+
+    if (error) {
+      notify("Erreur envoi : " + error.message, "error");
+    } else { 
+      setChatMsg(""); 
+      // On rafraîchit la discussion pour voir le message apparaître
+      if (!isAdmin) fetchStudentData(); 
+      else fetchConversation(chatWith.id); 
+    }
+};
 
   // ── SAUVEGARDER TOP 5 ────────────────────────────────────────────────────────
   const saveTop5 = async () => {
