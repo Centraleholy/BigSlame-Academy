@@ -535,10 +535,10 @@ export default function BigSlameAcademy() {
 
   const copyToClipboard = (text) => navigator.clipboard.writeText(text).then(() => notify("Copié ✓"));
 
-  // ✅ Stats admin corrigées — filtre is_admin=false garanti
-  const activeStudents  = students.filter(s => !s.is_admin && s.is_validated);
-  const pendingStudents = students.filter(s => !s.is_admin && !s.is_validated);
-  const totalRevenue    = activeStudents.reduce((a, s) => a + (s.plan==="Silver"?21.99:s.plan==="Gold"?47.99:87.99), 0);
+  // ✅ Filtre corrigé — gère is_admin=null, is_validated=null
+  const activeStudents  = students.filter(s => s.id !== ADMIN_ID && s.is_validated === true);
+  const pendingStudents = students.filter(s => s.id !== ADMIN_ID && s.is_validated !== true);
+  const totalRevenue    = activeStudents.reduce((a, s) => a + (s.plan === "Silver" ? 21.99 : s.plan === "Gold" ? 47.99 : 87.99), 0);
 
   // ── NAV BUTTONS ───────────────────────────────────────────────────────────────
   const NavActions = ({ mob }) => {
