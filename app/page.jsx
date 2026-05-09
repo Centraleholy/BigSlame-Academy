@@ -321,33 +321,32 @@ export default function BigSlameAcademy() {
       notify("Remplis tous les champs.", "error"); return;
     }
     setCreateBusy(true);
-    // 1. Créer l'utilisateur via Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email: newStudent.email,
-      password: newStudent.password,
-      options: { data: { username: newStudent.username } }
-    });
-    if (error) { notify("Erreur : " + error.message, "error"); setCreateBusy(false); return; }
 
-    // 2. Mettre à jour le profil avec le plan et valider
-    if (data.user) {
-      await supabase.from("profiles").upsert({
-        id: data.user.id,
-        username: newStudent.username,
-        plan: newStudent.plan,
-        is_validated: true,
-        is_admin: false,
-        ...(newStudent.plan !== "Silver" && {
-          assistance_end_date: new Date(Date.now() + 30*24*60*60*1000).toISOString()
-        })
+    // ✅ FIX : on appelle la route API serveur (qui utilise SERVICE_ROLE_KEY)
+    // supabase.auth.signUp() côté client causait "Invalid path in request URL"
+    try {
+      const res = await fetch("/api/create-student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newStudent.email.trim(),
+          password: newStudent.password.trim(),
+          username: newStudent.username.trim(),
+          plan: newStudent.plan,
+        }),
       });
+      const result = await res.json();
+      if (!res.ok) {
+        notify("Erreur : " + result.error, "error");
+        setCreateBusy(false); return;
+      }
+      setCreatedCreds({ ...newStudent });
+      setNewStudent({ username: "", email: "", password: genPassword(), plan: "Silver" });
+      notify("✅ Compte créé avec succès !");
+      await fetchAdminData();
+    } catch (e) {
+      notify("Erreur réseau : " + e.message, "error");
     }
-
-    // 3. Afficher les identifiants
-    setCreatedCreds({ ...newStudent });
-    setNewStudent({ username:"", email:"", password:genPassword(), plan:"Silver" });
-    notify("✅ Compte créé avec succès !");
-    await fetchAdminData();
     setCreateBusy(false);
   };
 
@@ -358,20 +357,24 @@ export default function BigSlameAcademy() {
 
     let audioUrl = null;
 
-    // Upload du fichier audio si sélectionné
     if (beatFile) {
-      const ext = beatFile.name.split(".").pop();
-      const path = `beats/${Date.now()}.${ext}`;
-      const { error:upErr } = await supabase.storage.from("beats").upload(path, beatFile, { contentType:beatFile.type });
+      // ✅ FIX : on utilise UNIQUEMENT le timestamp comme nom de fichier
+      // Les espaces dans "MELO 108 BPM_2.mp3" causaient "Invalid path in request URL"
+      const ext = beatFile.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "");
+      const safePath = `${Date.now()}.${ext}`;   // ex: 1712345678901.mp3  — aucun espace
+
+      const { error: upErr } = await supabase.storage
+        .from("beats")
+        .upload(safePath, beatFile, { contentType: beatFile.type, upsert: false });
+
       if (upErr) {
-        notify("Erreur upload audio : " + upErr.message, "error");
+        notify("Erreur upload : " + upErr.message, "error");
         setBeatBusy(false); return;
       }
-      const { data:{ publicUrl } } = supabase.storage.from("beats").getPublicUrl(path);
+      const { data: { publicUrl } } = supabase.storage.from("beats").getPublicUrl(safePath);
       audioUrl = publicUrl;
     }
 
-    // Insérer dans la base
     const { error } = await supabase.from("beats").insert({
       title: newBeat.title.trim(),
       bpm: newBeat.bpm ? parseInt(newBeat.bpm) : null,
@@ -384,10 +387,10 @@ export default function BigSlameAcademy() {
     if (error) { notify("Erreur publication : " + error.message, "error"); }
     else {
       notify(`✅ "${newBeat.title}" publié sur la page d'accueil !`);
-      setNewBeat({ title:"", bpm:"", style:"Drill" });
+      setNewBeat({ title: "", bpm: "", style: "Drill" });
       setBeatFile(null);
       if (beatFileRef.current) beatFileRef.current.value = "";
-      await fetchPublicData(); // ← recharge la homepage immédiatement
+      await fetchPublicData();
     }
     setBeatBusy(false);
   };
