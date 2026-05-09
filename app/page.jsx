@@ -270,14 +270,12 @@ export default function BigSlameAcademy() {
   };
 
   // Recharger messages pour un élève sélectionné (admin)
-    const fetchConversation = async (studentId) => {
-    // On cherche les messages entre l'élève et l'admin
+  const fetchConversation = async (studentId) => {
     const { data } = await supabase.from("messages").select("*")
       .or(`sender_id.eq.${studentId},receiver_id.eq.${studentId}`)
       .order("created_at");
     setMessages(data || []);
   };
-
 
   useEffect(() => {
     if (chatWith) fetchConversation(chatWith.id);
@@ -439,41 +437,17 @@ export default function BigSlameAcademy() {
     setUploadBusy(false);
   };
 
-    // ── ENVOYER MESSAGE (CORRIGÉ) ────────────────────────────────────────────────
+  // ── ENVOYER MESSAGE ──────────────────────────────────────────────────────────
   const sendMsg = async () => {
     if (!chatMsg.trim()) return;
-
-    // 1. ICI : Colle ton ID Admin (UUID) copié depuis Supabase profiles
-    const MY_ADMIN_ID = "d94ea2f0-abc0-4675-a491-8b990f1afc17"; 
-
-    // 2. On définit qui est l'expéditeur et le destinataire
-    // Si tu es admin, l'expéditeur c'est TOI, le destinataire c'est l'élève (chatWith.id)
-    // Si tu es élève, l'expéditeur c'est TOI, le destinataire c'est l'ADMIN
-    const senderId   = session?.user?.id;
-    const receiverId = isAdmin ? chatWith?.id : MY_ADMIN_ID;
-
-    // Sécurité : si on n'a pas de destinataire, on n'envoie rien
-    if (!receiverId) {
-      notify("Erreur : Aucun destinataire sélectionné", "error");
-      return;
-    }
-
+    const senderId = isAdmin ? null : session?.user?.id;   // null = admin (à adapter selon ta logique)
+    const receiverId = isAdmin ? chatWith?.id : null;
     const { error } = await supabase.from("messages").insert({
-      sender_id: senderId, 
-      receiver_id: receiverId, 
-      content: chatMsg.trim(),
+      sender_id: senderId, receiver_id: receiverId, content: chatMsg.trim(),
     });
-
-    if (error) {
-      notify("Erreur envoi : " + error.message, "error");
-    } else { 
-      setChatMsg(""); 
-      // On rafraîchit la discussion immédiatement
-      if (!isAdmin) fetchStudentData(); 
-      else fetchConversation(chatWith.id); 
-    }
+    if (error) notify("Erreur envoi : " + error.message, "error");
+    else { setChatMsg(""); if (!isAdmin) fetchStudentData(); else fetchConversation(chatWith.id); }
   };
-
 
   // ── SAUVEGARDER TOP 5 ────────────────────────────────────────────────────────
   const saveTop5 = async () => {
